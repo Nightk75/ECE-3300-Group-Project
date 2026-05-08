@@ -1,82 +1,107 @@
 `timescale 1ns / 1ps
 
 module pixel_generation(
-    input clk,                              // 100MHz from Basys 3
-    input reset,                            // btnC
-    input video_on,                         // from VGA controller
-    input [9:0] x, y,                       // from VGA controller
+    input clk,                               
+    input reset,                             
+    input video_on,                          
+    input [9:0] x, y,                        
     input [11:0] sw_color,
-    input [7:0] rx_data,     // From UART
-    input rx_done,           // High for 1 cycle when char received
-    output reg [11:0] rgb                   // to DAC, to VGA controller
+    input [7:0] rx_data,     
+    input rx_done,           
+    output reg [11:0] rgb                    
     );
     
-    parameter X_MAX = 639;                  // right border of display area
-    parameter Y_MAX = 479;                  // bottom border of display area
-    //parameter SQ_RGB = 12'h0FF;             // red & green = yellow for square
-    parameter BG_RGB = 12'hF00;             // blue background
-    parameter SQUARE_SIZE = 64;             // width of square sides in pixels
-    parameter SQUARE_VELOCITY_POS = 2;      // set position change value for positive direction
-    parameter SQUARE_VELOCITY_NEG = -2;     // set position change value for negative direction  
+    parameter X_MAX = 639;                  
+    parameter Y_MAX = 479;                  
+    parameter BG_RGB = 12'h2BF;             
+    parameter SQUARE_SIZE = 40;             // Reduced size for better gameplay
     
-    // ASCII Constants
-    localparam char_w = 8'h77;
-    localparam char_a = 8'h61;
-    localparam char_s = 8'h73;
-    localparam char_d = 8'h64;
-    localparam STEP   = 10; // Pixels to move per keypress
+    // ASCII/Movement Constants
+    localparam STEP = 10; 
     
-    // create a 60Hz refresh tick at the start of vsync 
     wire refresh_tick;
     assign refresh_tick = ((y == 481) && (x == 0)) ? 1 : 0;
     
-    // square boundaries and position
-    wire [9:0] sq_x_l, sq_x_r;              // square left and right boundary
-    wire [9:0] sq_y_t, sq_y_b;              // square top and bottom boundary
+    // --- Frog Registers ---
+    reg [9:0] sq_x_reg, sq_y_reg;
+    wire [9:0] sq_x_l, sq_x_r, sq_y_t, sq_y_b;
     
-    reg [9:0] sq_x_reg, sq_y_reg;           // regs to track left, top position
-    wire [9:0] sq_x_next, sq_y_next;        // buffer wires
+    // --- Car Parameters and Registers ---
+    localparam CAR_WIDTH = 40;
+    localparam CAR_HEIGHT = 80;
+    localparam CAR_SPEED = 3;
     
-    reg [9:0] x_delta_reg, y_delta_reg;     // track square speed
-    reg [9:0] x_delta_next, y_delta_next;   // buffer regs    
+    // Lane X positions
+    localparam LANE1_X = 150;
+    localparam LANE2_X = 300;
+    localparam LANE3_X = 450;
+
+    reg [9:0] car1_y, car2_y, car3_y;
     
-    // --- Add these Registers inside pixel_generation ---
-reg [9:0] car_x_reg;           // X position of the "car"
-localparam CAR_Y = 250;        // Fixed Y lane for the car
-localparam CAR_WIDTH = 80;
-localparam CAR_HEIGHT = 40;
-localparam CAR_SPEED = 2;      // How many pixels it moves per frame
+    parameter TROPHY_RGB = 12'hFF0;         // Yellow (RRRRGGGGBBBB)
+    localparam TROPHY_SIZE = 30;
+    localparam TROPHY_X = 600;              // Right side of screen
+    localparam TROPHY_Y = 225;              // Centered vertically (Y_MAX/2 approx)
 
-// --- Car Movement Logic ---
-always @(posedge clk or posedge reset) begin
-    if(reset) begin
-        car_x_reg <= 0;
-    end
-    else if(refresh_tick) begin // Move once per screen refresh (60Hz)
-        if(car_x_reg >= X_MAX)
-            car_x_reg <= 0;     // Wrap around
-        else
-            car_x_reg <= car_x_reg + CAR_SPEED;
-    end
-end
-
-// --- Collision Detection ---
-wire collision;
-assign collision = (sq_x_r >= car_x_reg) && (sq_x_l <= car_x_reg + CAR_WIDTH) &&
-                   (sq_y_b >= CAR_Y) && (sq_y_t <= CAR_Y + CAR_HEIGHT);
-
-// --- Modify your Square movement to handle Reset on Collision ---
+    // --- Car Movement Logic (Vertical) ---
     always @(posedge clk or posedge reset) begin
-        if(reset || collision) begin // Reset frog to start if hit
-            sq_x_reg <= 320;        // Start middle-bottom
-            sq_y_reg <= 400;
+        if(reset) begin
+            car1_y <= 0;
+            car2_y <= Y_MAX + CAR_HEIGHT;
+            car3_y <= 0;
+        end
+        else if(refresh_tick) begin
+            // Car 1: Top to Bottom
+            if(car1_y >= Y_MAX + CAR_HEIGHT) car1_y <= 0;
+            else car1_y <= car1_y + CAR_SPEED;
+            
+            // Car 2: Bottom to Top
+            if(car2_y <= 0) car2_y <= Y_MAX;
+            else car2_y <= car2_y - (CAR_SPEED + 1);
+            
+            // Car 3: Top to Bottom
+            if(car3_y >= Y_MAX+ CAR_HEIGHT) car3_y <= 0;
+            else car3_y <= car3_y + CAR_SPEED;
+        end
+    end
+    
+    wire sq_on;
+    assign sq_on = (sq_x_l <= x) && (x <= sq_x_r) && (sq_y_t <= y) && (y <= sq_y_b);
+
+    // --- Collision Detection for 3 Cars ---
+    wire car1_on, car2_on, car3_on;
+    assign car1_on = (x >= LANE1_X) && (x <= LANE1_X + CAR_WIDTH) && (y >= car1_y) && (y <= car1_y + CAR_HEIGHT);
+    assign car2_on = (x >= LANE2_X) && (x <= LANE2_X + CAR_WIDTH) && (y >= car2_y) && (y <= car2_y + CAR_HEIGHT);
+    assign car3_on = (x >= LANE3_X) && (x <= LANE3_X + CAR_WIDTH) && (y >= car3_y) && (y <= car3_y + CAR_HEIGHT);
+
+    wire collision;
+    assign collision = (sq_on && (car1_on || car2_on || car3_on));
+    
+    // --- Trophy Rendering Logic ---
+    wire trophy_on;
+    assign trophy_on = (x >= TROPHY_X) && (x <= TROPHY_X + TROPHY_SIZE) &&
+                       (y >= TROPHY_Y) && (y <= TROPHY_Y + TROPHY_SIZE);
+
+    // --- Win Detection ---
+    wire win;
+    assign win = (sq_on && trophy_on);
+
+    // --- Modified Frog Movement & Reset Logic ---
+    always @(posedge clk or posedge reset) begin
+        // Reset frog if: 
+        // 1. Manual reset pressed
+        // 2. Collision with car (Lose)
+        // 3. Collision with trophy (Win)
+        if(reset || collision || win) begin 
+            sq_x_reg <= 20;         // Start Left
+            sq_y_reg <= 220;        // Start Center-Y
         end
         else if(rx_done) begin
             case(rx_data)
-                8'h77, 8'h57: if(sq_y_reg >= STEP) sq_y_reg <= sq_y_reg - STEP; // W
-                8'h73, 8'h53: if(sq_y_reg <= Y_MAX - SQUARE_SIZE - STEP) sq_y_reg <= sq_y_reg + STEP; // S
-                8'h61, 8'h41: if(sq_x_reg >= STEP) sq_x_reg <= sq_x_reg - STEP; // A
-                8'h64, 8'h44: if(sq_x_reg <= X_MAX - SQUARE_SIZE - STEP) sq_x_reg <= sq_x_reg + STEP; // D
+                8'h77, 8'h57: if(sq_y_reg >= STEP) sq_y_reg <= sq_y_reg - STEP; 
+                8'h73, 8'h53: if(sq_y_reg <= Y_MAX - SQUARE_SIZE - STEP) sq_y_reg <= sq_y_reg + STEP; 
+                8'h61, 8'h41: if(sq_x_reg >= STEP) sq_x_reg <= sq_x_reg - STEP; 
+                8'h64, 8'h44: if(sq_x_reg <= X_MAX - SQUARE_SIZE - STEP) sq_x_reg <= sq_x_reg + STEP; 
             endcase
         end
     end
@@ -86,24 +111,17 @@ assign collision = (sq_x_r >= car_x_reg) && (sq_x_l <= car_x_reg + CAR_WIDTH) &&
     assign sq_x_r = sq_x_l + SQUARE_SIZE - 1;
     assign sq_y_b = sq_y_t + SQUARE_SIZE - 1;
     
-    // square status signal
-    wire sq_on;
-    assign sq_on = (sq_x_l <= x) && (x <= sq_x_r) &&
-                   (sq_y_t <= y) && (y <= sq_y_b);
-    
-    
-    // RGB control
-    wire car_on;
-assign car_on = (x >= car_x_reg) && (x <= car_x_reg + CAR_WIDTH) &&
-                (y >= CAR_Y) && (y <= CAR_Y + CAR_HEIGHT);
 
+    // --- Updated RGB Output ---
     always @* begin
         if(~video_on)
             rgb = 12'h000;
         else if(sq_on)
-            rgb = sw_color;        // Your "Frog"
-        else if(car_on)
-            rgb = 12'h00F;        // The "Car" (Red in 12-bit RRRRGGGGBBBB)
+            rgb = sw_color;        // Frog
+        else if(trophy_on)
+            rgb = TROPHY_RGB;      // Yellow Trophy
+        else if(car1_on || car2_on || car3_on)
+            rgb = 12'hF00;        //  Cars
         else
             rgb = BG_RGB;         // Background
     end
