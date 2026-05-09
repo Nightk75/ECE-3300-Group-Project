@@ -33,7 +33,7 @@ module top(
         .rx_done(w_rx_dv),   // New
         .rgb(rgb_next),
         .collision(w_collision),
-        .win(w_win),
+        .win(w_win)
     );
     
     // Instantiate UART Receiver
@@ -57,18 +57,20 @@ module top(
     reg collision_latched;
     reg win_latched;
 
-    always @(posedge clk_100MHz or posedge reset) begin
-        if (reset) begin
-            collision_latched <= 1'b0;
-            win_latched <= 1'b0;
-        end
-        else begin
-            if (w_collision)
-                collision_latched <= 1'b1;
-            if (w_win)
-                win_latched <= 1'b1;
-        end
+   always @(posedge clk_100MHz or posedge reset) begin
+    if (reset) begin
+        collision_latched <= 1'b0;
+        win_latched <= 1'b0;
     end
+    else if (w_collision) begin
+        collision_latched <= 1'b1;
+        win_latched <= 1'b0;
+    end
+    else if (w_win) begin
+        win_latched <= 1'b1;
+        collision_latched <= 1'b0;
+    end
+end
 
     assign led[9] = collision_latched;
     assign led[10] = win_latched;
