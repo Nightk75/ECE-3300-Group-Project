@@ -8,7 +8,9 @@ module pixel_generation(
     input [11:0] sw_color,
     input [7:0] rx_data,     
     input rx_done,           
-    output reg [11:0] rgb                    
+    output reg [11:0] rgb,  
+    output collision,
+    output win
     );
     
     parameter X_MAX = 639;                  
@@ -74,7 +76,6 @@ module pixel_generation(
     assign car2_on = (x >= LANE2_X) && (x <= LANE2_X + CAR_WIDTH) && (y >= car2_y) && (y <= car2_y + CAR_HEIGHT);
     assign car3_on = (x >= LANE3_X) && (x <= LANE3_X + CAR_WIDTH) && (y >= car3_y) && (y <= car3_y + CAR_HEIGHT);
 
-    wire collision;
     assign collision = (sq_on && (car1_on || car2_on || car3_on));
     
     // --- Trophy Rendering Logic ---
@@ -83,7 +84,6 @@ module pixel_generation(
                        (y >= TROPHY_Y) && (y <= TROPHY_Y + TROPHY_SIZE);
 
     // --- Win Detection ---
-    wire win;
     assign win = (sq_on && trophy_on);
 
     // --- Modified Frog Movement & Reset Logic ---

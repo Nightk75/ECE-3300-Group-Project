@@ -17,6 +17,8 @@ module top(
     wire[11:0] rgb_next;
     wire w_rx_dv;
     wire [7:0] w_rx_byte;
+    wire w_collision;
+    wire w_win;
     
     vga_controller vc(.clk_100MHz(clk_100MHz), .reset(reset), .video_on(w_video_on), .hsync(hsync), 
                       .vsync(vsync), .p_tick(w_p_tick), .x(w_x), .y(w_y));
@@ -29,7 +31,9 @@ module top(
         .sw_color(color),
         .rx_data(w_rx_byte), // New
         .rx_done(w_rx_dv),   // New
-        .rgb(rgb_next)
+        .rgb(rgb_next),
+        .collision(w_collision),
+        .win(w_win),
     );
     
     // Instantiate UART Receiver
@@ -49,5 +53,24 @@ module top(
     assign led[0] = w_rx_dv; // flashes when UART byte received, kinda fast to see
     assign led[8:1] = w_rx_byte; // Displays received UART ASCII value (hex) as binary on LEDs
     assign led[15:9] = 0; //unused currently
+    
+    reg collision_latched;
+    reg win_latched;
+
+    always @(posedge clk_100MHz or posedge reset) begin
+        if (reset) begin
+            collision_latched <= 1'b0;
+            win_latched <= 1'b0;
+        end
+        else begin
+            if (w_collision)
+                collision_latched <= 1'b1;
+            if (w_win)
+                win_latched <= 1'b1;
+        end
+    end
+
+    assign led[9] = collision_latched;
+    assign led[10] = win_latched;
     
 endmodule
