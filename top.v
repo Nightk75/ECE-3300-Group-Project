@@ -52,7 +52,7 @@ module top(
     assign rgb = rgb_reg;
     assign led[0] = w_rx_dv; // flashes when UART byte received, kinda fast to see
     assign led[8:1] = w_rx_byte; // Displays received UART ASCII value (hex) as binary on LEDs
-    assign led[15:9] = 0; //unused currently
+    assign led[15:11] = 0; //unused currently
     
     reg collision_latched;
     reg win_latched;
