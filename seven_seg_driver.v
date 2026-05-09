@@ -5,11 +5,15 @@ module seven_seg_driver(
     output reg [7:0] an
 );
 
-reg sel;
 reg [3:0] digit;
+reg [16:0] refresh_count = 0;
+wire sel;
 
-always @(posedge clk)
-    sel <= ~sel;
+always @(posedge clk) begin
+    refresh_count <= refresh_count + 1;
+end
+
+assign sel = refresh_count[16];
 
 always @(*) begin
     if (sel) begin

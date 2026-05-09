@@ -8,7 +8,9 @@ module top(
     output hsync,           // VGA port on Basys 3
     output vsync,           // VGA port on Basys 3
     output [11:0] rgb,       // to DAC, 3 bits to VGA port on Basys 3
-    output [15:0] led 
+    output [15:0] led,
+    output [6:0] seg,
+    output [7:0] an 
     );
     
     wire w_video_on, w_p_tick;
@@ -44,6 +46,12 @@ module top(
         .o_Rx_Byte(w_rx_byte)
     );
     
+    seven_seg_driver seg_unit(
+    .clk(clk_100MHz),
+    .value(w_rx_byte),
+    .seg(seg),
+    .an(an)
+    );
     
     always @(posedge clk_100MHz)
         if(w_p_tick)
