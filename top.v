@@ -7,7 +7,8 @@ module top(
     input UART_TXD_IN,
     output hsync,           // VGA port on Basys 3
     output vsync,           // VGA port on Basys 3
-    output [11:0] rgb       // to DAC, 3 bits to VGA port on Basys 3
+    output [11:0] rgb,       // to DAC, 3 bits to VGA port on Basys 3
+    output [15:0] led 
     );
     
     wire w_video_on, w_p_tick;
@@ -45,5 +46,8 @@ module top(
             rgb_reg <= rgb_next;
             
     assign rgb = rgb_reg;
- 
+    assign led[0] = w_rx_dv; // flashes when UART byte received, kinda fast to see
+    assign led[8:1] = w_rx_byte; // Displays received UART ASCII value (hex) as binary on LEDs
+    assign led[15:9] = 0; //unused currently
+    
 endmodule
