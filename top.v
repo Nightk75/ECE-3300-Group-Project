@@ -5,6 +5,10 @@ module top(
     input reset,            // btnC on Basys 3
     input [11:0] color,
     input UART_TXD_IN,
+    input btnU,
+    input btnD,
+    input btnL,
+    input btnR,
     output hsync,           // VGA port on Basys 3
     output vsync,           // VGA port on Basys 3
     output [11:0] rgb,       // to DAC, 3 bits to VGA port on Basys 3
@@ -35,7 +39,11 @@ module top(
         .rx_done(w_rx_dv),   // New
         .rgb(rgb_next),
         .collision(w_collision),
-        .win(w_win)
+        .win(w_win),
+        .btnU(btnU),
+        .btnD(btnD),
+        .btnL(btnL),
+        .btnR(btnR)
     );
     
     // Instantiate UART Receiver

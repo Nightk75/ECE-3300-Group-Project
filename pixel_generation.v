@@ -7,7 +7,11 @@ module pixel_generation(
     input [9:0] x, y,                        
     input [11:0] sw_color,
     input [7:0] rx_data,     
-    input rx_done,           
+    input rx_done,        
+    input btnU,
+    input btnD,
+    input btnL,
+    input btnR,   
     output reg [11:0] rgb,  
     output collision,
     output win
@@ -27,6 +31,15 @@ module pixel_generation(
     // --- Frog Registers ---
     reg [9:0] sq_x_reg, sq_y_reg;
     wire [9:0] sq_x_l, sq_x_r, sq_y_t, sq_y_b;
+    
+    // Previous button states for edge detection
+    reg btnU_prev, btnD_prev, btnL_prev, btnR_prev;
+    
+    // One-clock pulse when button is newly pressed
+    wire btnU_press = btnU && !btnU_prev;
+    wire btnD_press = btnD && !btnD_prev;
+    wire btnL_press = btnL && !btnL_prev;
+    wire btnR_press = btnR && !btnR_prev;
     
     // --- Car Parameters and Registers ---
     localparam CAR_WIDTH = 40;
@@ -86,25 +99,70 @@ module pixel_generation(
     // --- Win Detection ---
     assign win = (sq_on && trophy_on);
 
-    // --- Modified Frog Movement & Reset Logic ---
+    // Store previous button values to detect new button presses
     always @(posedge clk or posedge reset) begin
-        // Reset frog if: 
-        // 1. Manual reset pressed
-        // 2. Collision with car (Lose)
-        // 3. Collision with trophy (Win)
-        if(reset || collision || win) begin 
-            sq_x_reg <= 20;         // Start Left
-            sq_y_reg <= 220;        // Start Center-Y
+        if (reset) begin
+            btnU_prev <= 1'b0;
+            btnD_prev <= 1'b0;
+            btnL_prev <= 1'b0;
+            btnR_prev <= 1'b0;
         end
-        else if(rx_done) begin
-            case(rx_data)
-                8'h77, 8'h57: if(sq_y_reg >= STEP) sq_y_reg <= sq_y_reg - STEP; 
-                8'h73, 8'h53: if(sq_y_reg <= Y_MAX - SQUARE_SIZE - STEP) sq_y_reg <= sq_y_reg + STEP; 
-                8'h61, 8'h41: if(sq_x_reg >= STEP) sq_x_reg <= sq_x_reg - STEP; 
-                8'h64, 8'h44: if(sq_x_reg <= X_MAX - SQUARE_SIZE - STEP) sq_x_reg <= sq_x_reg + STEP; 
-            endcase
+        else begin
+            btnU_prev <= btnU;
+            btnD_prev <= btnD;
+            btnL_prev <= btnL;
+            btnR_prev <= btnR;
         end
     end
+    
+        // --- Frog Movement & Reset Logic ---
+    // Movement control:
+    // Frog can be moved using UART (WASD) or push buttons
+    // btnU = up, btnD = down, btnL = left, btnR = right
+    // Reset occurs on:
+    // 1. Manual reset
+    // 2. Collision (lose)
+    // 3. Trophy reached (win)
+    
+    always @(posedge clk or posedge reset) begin
+    if (reset || collision || win) begin 
+        sq_x_reg <= 20;
+        sq_y_reg <= 220;
+    end
+    else begin
+
+        // UART movement (one step per keypress)
+        if (rx_done) begin
+            case (rx_data)
+                8'h77, 8'h57: if (sq_y_reg >= STEP) 
+                    sq_y_reg <= sq_y_reg - STEP;   // W
+
+                8'h73, 8'h53: if (sq_y_reg <= Y_MAX - SQUARE_SIZE - STEP) 
+                    sq_y_reg <= sq_y_reg + STEP;   // S
+
+                8'h61, 8'h41: if (sq_x_reg >= STEP) 
+                    sq_x_reg <= sq_x_reg - STEP;   // A
+
+                8'h64, 8'h44: if (sq_x_reg <= X_MAX - SQUARE_SIZE - STEP) 
+                    sq_x_reg <= sq_x_reg + STEP;   // D
+            endcase
+        end
+
+        // Button movement (one step per button press)
+        else if (btnU_press && sq_y_reg >= STEP)
+            sq_y_reg <= sq_y_reg - STEP;
+        
+        else if (btnD_press && sq_y_reg <= Y_MAX - SQUARE_SIZE - STEP)
+            sq_y_reg <= sq_y_reg + STEP;
+        
+        else if (btnL_press && sq_x_reg >= STEP)
+            sq_x_reg <= sq_x_reg - STEP;
+        
+        else if (btnR_press && sq_x_reg <= X_MAX - SQUARE_SIZE - STEP)
+            sq_x_reg <= sq_x_reg + STEP;
+        
+    end
+end
 
     assign sq_x_l = sq_x_reg;
     assign sq_y_t = sq_y_reg;
