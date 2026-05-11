@@ -23,6 +23,10 @@ module top(
     wire[11:0] rgb_next;
     wire w_rx_dv;
     wire [7:0] w_rx_byte;
+    wire [7:0] w_fifo_dout;
+    wire w_fifo_empty;
+    wire w_fifo_full;
+    wire w_fifo_rd_en;
     wire w_collision;
     wire w_win;
     
@@ -35,8 +39,8 @@ module top(
         .x(w_x), 
         .y(w_y), 
         .sw_color(color),
-        .rx_data(w_rx_byte), // New
-        .rx_done(w_rx_dv),   // New
+        .rx_data(w_fifo_dout),
+        .rx_done(w_fifo_rd_en),
         .rgb(rgb_next),
         .collision(w_collision),
         .win(w_win),
@@ -54,9 +58,22 @@ module top(
         .o_Rx_Byte(w_rx_byte)
     );
     
+    sync_fifo #(.DEPTH(16), .DWIDTH(8)) uart_fifo (
+    .clk(clk_100MHz),
+    .rstn(~reset),
+    .wr_en(w_rx_dv && !w_fifo_full),
+    .din(w_rx_byte),
+    .rd_en(w_fifo_rd_en),
+    .dout(w_fifo_dout),
+    .empty(w_fifo_empty),
+    .full(w_fifo_full)
+    );
+    
+    assign w_fifo_rd_en = !w_fifo_empty;
+    
     seven_seg_driver seg_unit(
     .clk(clk_100MHz),
-    .value(w_rx_byte),
+    .value(w_fifo_dout),
     .seg(seg),
     .an(an)
     );
@@ -66,8 +83,8 @@ module top(
             rgb_reg <= rgb_next;
             
     assign rgb = rgb_reg;
-    assign led[0] = w_rx_dv; // flashes when UART byte received, kinda fast to see
-    assign led[8:1] = w_rx_byte; // Displays received UART ASCII value (hex) as binary on LEDs
+    assign led[0] = w_fifo_full; // turns on if FIFO is full
+    assign led[8:1] = w_fifo_dout; // Displays received UART ASCII value (hex) as binary on LEDs
     assign led[15:11] = 0; //unused currently
     
     reg collision_latched;
