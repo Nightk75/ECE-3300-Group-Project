@@ -27,6 +27,7 @@ module top(
     wire w_fifo_empty;
     wire w_fifo_full;
     wire w_fifo_rd_en;
+    wire w_fifo_data_valid;
     wire w_collision;
     wire w_win;
     
@@ -40,7 +41,7 @@ module top(
         .y(w_y), 
         .sw_color(color),
         .rx_data(w_fifo_dout),
-        .rx_done(w_fifo_rd_en),
+        .rx_done(w_fifo_data_valid),
         .rgb(rgb_next),
         .collision(w_collision),
         .win(w_win),
@@ -69,8 +70,23 @@ module top(
     .full(w_fifo_full)
     );
     
-    assign w_fifo_rd_en = !w_fifo_empty;
+    reg fifo_rd_en_reg;
+    reg fifo_data_valid_reg;
     
+    always @(posedge clk_100MHz or posedge reset) begin
+        if (reset) begin
+            fifo_rd_en_reg <= 1'b0;
+            fifo_data_valid_reg <= 1'b0;
+        end
+        else begin
+            fifo_rd_en_reg <= !w_fifo_empty;
+            fifo_data_valid_reg <= fifo_rd_en_reg;
+        end
+    end
+    
+    assign w_fifo_rd_en = fifo_rd_en_reg;
+    assign w_fifo_data_valid = fifo_data_valid_reg;
+        
     seven_seg_driver seg_unit(
     .clk(clk_100MHz),
     .value(w_fifo_dout),
