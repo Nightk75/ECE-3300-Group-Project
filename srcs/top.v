@@ -24,6 +24,7 @@ module top(
     wire w_rx_dv;
     wire [7:0] w_rx_byte;
     wire [7:0] w_fifo_dout;
+    wire [1:0] game_state;
     wire w_fifo_empty;
     wire w_fifo_full;
     wire w_fifo_rd_en;
@@ -58,6 +59,15 @@ module top(
         .i_Rx_Serial(UART_TXD_IN),
         .o_Rx_DV(w_rx_dv),
         .o_Rx_Byte(w_rx_byte)
+    );
+    
+    game_fsm fsm_unit(
+    .clk(clk_100MHz),
+    .reset(reset),
+    .start(w_fifo_data_valid),
+    .collision(w_collision),
+    .win(w_win),
+    .state(game_state)
     );
     
     sync_fifo #(.DEPTH(16), .DWIDTH(8)) uart_fifo (
@@ -105,9 +115,9 @@ module top(
     // Gate-level modeling: LED11 turns on when collision OR win occurs
     or gate_status_event(status_event, w_collision, w_win);
     assign led[11] = status_event;
+    assign led[13:12] = game_state;
+    assign led[15:14] = 0;
     
-    // LEDs 12-15 unused
-    assign led[15:12] = 0;
     
     // Displays received UART ASCII value (hex) as binary on LEDs
     genvar i; 

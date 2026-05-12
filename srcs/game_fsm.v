@@ -32,11 +32,13 @@ module game_fsm(
                 end
 
                 HIT: begin
-                    state <= PLAY;
+                    if (start)
+                        state <= PLAY;
                 end
-
+                
                 WON: begin
-                    state <= IDLE;
+                    if (start)
+                        state <= IDLE;
                 end
 
                 default: begin
