@@ -30,6 +30,7 @@ module top(
     wire w_fifo_data_valid;
     wire w_collision;
     wire w_win;
+    wire status_event;
     
     vga_controller vc(.clk_100MHz(clk_100MHz), .reset(reset), .video_on(w_video_on), .hsync(hsync), 
                       .vsync(vsync), .p_tick(w_p_tick), .x(w_x), .y(w_y));
@@ -100,8 +101,22 @@ module top(
             
     assign rgb = rgb_reg;
     assign led[0] = w_fifo_full; // turns on if FIFO is full
-    assign led[8:1] = w_fifo_dout; // Displays received UART ASCII value (hex) as binary on LEDs
-    assign led[15:11] = 0; //unused currently
+    
+    // Gate-level modeling: LED11 turns on when collision OR win occurs
+    or gate_status_event(status_event, w_collision, w_win);
+    assign led[11] = status_event;
+    
+    // LEDs 12-15 unused
+    assign led[15:12] = 0;
+    
+    // Displays received UART ASCII value (hex) as binary on LEDs
+    genvar i; 
+
+    generate
+        for (i = 0; i < 8; i = i + 1) begin : uart_led_bits
+            assign led[i+1] = w_fifo_dout[i];
+        end
+    endgenerate
     
     reg collision_latched;
     reg win_latched;

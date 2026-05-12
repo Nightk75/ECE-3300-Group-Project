@@ -1,5 +1,14 @@
 `timescale 1ns / 1ps
 
+`define KEY_W_LOWER 8'h77
+`define KEY_W_UPPER 8'h57
+`define KEY_A_LOWER 8'h61
+`define KEY_A_UPPER 8'h41
+`define KEY_S_LOWER 8'h73
+`define KEY_S_UPPER 8'h53
+`define KEY_D_LOWER 8'h64
+`define KEY_D_UPPER 8'h44
+
 module pixel_generation(
     input clk,                               
     input reset,                             
@@ -134,16 +143,16 @@ module pixel_generation(
         // UART movement (one step per keypress)
         if (rx_done) begin
             case (rx_data)
-                8'h77, 8'h57: if (sq_y_reg >= STEP) 
+                `KEY_W_LOWER, `KEY_W_UPPER: if (sq_y_reg >= STEP) 
                     sq_y_reg <= sq_y_reg - STEP;   // W
 
-                8'h73, 8'h53: if (sq_y_reg <= Y_MAX - SQUARE_SIZE - STEP) 
+                `KEY_S_LOWER, `KEY_S_UPPER: if (sq_y_reg <= Y_MAX - SQUARE_SIZE - STEP) 
                     sq_y_reg <= sq_y_reg + STEP;   // S
 
-                8'h61, 8'h41: if (sq_x_reg >= STEP) 
+                `KEY_A_LOWER, `KEY_A_UPPER: if (sq_x_reg >= STEP) 
                     sq_x_reg <= sq_x_reg - STEP;   // A
 
-                8'h64, 8'h44: if (sq_x_reg <= X_MAX - SQUARE_SIZE - STEP) 
+                `KEY_D_LOWER, `KEY_D_UPPER: if (sq_x_reg <= X_MAX - SQUARE_SIZE - STEP) 
                     sq_x_reg <= sq_x_reg + STEP;   // D
             endcase
         end
